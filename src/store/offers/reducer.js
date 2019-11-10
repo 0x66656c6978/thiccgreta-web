@@ -1,6 +1,7 @@
 import { initialState } from './selectors'
 import {
-  OFFER_CONNECTION_OPENED,
+  OFFER_CONNECTION_CONNECTING,
+  OFFER_CONNECTION_OPEN,
   OFFER_CONNECTION_RETRY,
   OFFER_CONNECTION_ERROR,
   OFFER_RECEIVED,
@@ -10,11 +11,17 @@ import {
 
 export default (state = initialState, { type, payload }) => {
   switch (type) {
-    case OFFER_CONNECTION_OPENED:
+    case OFFER_CONNECTION_CONNECTING:
+      return {
+        ...state,
+        connectionOpen: false,
+        connecting: true,
+      }
+    case OFFER_CONNECTION_OPEN:
       return {
         ...state,
         connectionOpen: true,
-        reconnecting: false,
+        connecting: false,
         error: null,
       }
     case OFFER_CONNECTION_RETRY:
@@ -27,14 +34,25 @@ export default (state = initialState, { type, payload }) => {
       return {
         ...state,
         connectionOpen: false,
+        connecting: false,
         reconnecting: false,
         error: payload,
       }
-    case OFFER_RECEIVED:
+    case OFFER_RECEIVED: {
+      const {
+        PoeNinjaItem: poeNinjaItem,
+        ...newOffer
+      } = payload
+      newOffer.poeNinjaItemId = poeNinjaItem.id
       return {
         ...state,
-        offers: [...state.offers, payload],
+        offers: [...state.offers, newOffer],
+        poeNinjaItems: {
+          ...state.poeNinjaItems,
+          [poeNinjaItem.id]: poeNinjaItem,
+        },
       }
+    }
     case REMOVE_OFFER:
       return {
         ...state,
@@ -43,7 +61,10 @@ export default (state = initialState, { type, payload }) => {
     case BLACKLIST_SELLER:
       return {
         ...state,
-        sellerBlacklist: [...state.sellerBlacklist, payload],
+        sellerBlacklist: {
+          ...state.sellerBlacklist,
+          [payload]: true,
+        },
       }
     default:
       return state

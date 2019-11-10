@@ -6,9 +6,6 @@ import middlewares from './middlewares'
 import reducer from './reducer'
 import sagas from './sagas'
 
-const devtools = isDev && isBrowser && window.devToolsExtension
-  ? window.devToolsExtension
-  : () => (fn) => fn
 
 const configureStore = (initialState, services = {}) => {
   const sagaMiddleware = createSagaMiddleware()
@@ -17,9 +14,11 @@ const configureStore = (initialState, services = {}) => {
     applyMiddleware(
       ...middlewares,
       sagaMiddleware
-    ),
-    devtools(),
+    )
   ]
+  if (isDev && isBrowser && window.__REDUX_DEVTOOLS_EXTENSION__) {
+    enhancers.push(window.__REDUX_DEVTOOLS_EXTENSION__())
+  }
 
   const store = createStore(reducer, initialState, compose(...enhancers))
   let sagaTask = sagaMiddleware.run(sagas, services)

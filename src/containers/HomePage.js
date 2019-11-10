@@ -7,6 +7,7 @@ import { HomePage } from 'components'
 import {
   selectOffers,
   selectConnectionOpen,
+  selectConnecting,
   selectReconnecting,
   selectReconnectBackoff,
   selectError,
@@ -20,6 +21,7 @@ const HomePageContainer = ({
   error,
   offers,
   connectionOpen,
+  connecting,
   reconnecting,
   reconnectBackoff,
   blacklistSeller,
@@ -31,6 +33,7 @@ const HomePageContainer = ({
     connectionOpen={connectionOpen}
     removeOffer={removeOffer}
     blacklistSeller={blacklistSeller}
+    connecting={connecting}
     reconnecting={reconnecting}
     reconnectBackoff={reconnectBackoff}
   />
@@ -41,6 +44,7 @@ const mapStateToProps = (state) => ({
   offers: selectOffers(state),
   connectionOpen: selectConnectionOpen(state),
   reconnecting: selectReconnecting(state),
+  connecting: selectConnecting(state),
   reconnectBackoff: selectReconnectBackoff(state),
 })
 
@@ -53,6 +57,7 @@ HomePageContainer.propTypes = {
   error: PropTypes.any,
   offers: PropTypes.array,
   connectionOpen: PropTypes.bool,
+  connecting: PropTypes.bool,
   reconnecting: PropTypes.bool,
   reconnectBackoff: PropTypes.number,
   removeOffer: PropTypes.func,

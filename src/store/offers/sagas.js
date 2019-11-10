@@ -1,104 +1,67 @@
 import {
-  fork,
   call,
   delay,
+  fork,
+  take,
   put,
 } from 'redux-saga/effects'
 
 import {
+  eventChannel,
+  END,
+} from 'redux-saga'
+
+import {
   offerReceived,
-  offerConnectionCreated,
-  offerConnectionOpened,
+  offerConnectionConnecting,
+  offerConnectionOpen,
   offerConnectionError,
   offerConnectionRetry,
 } from './actions'
 
-const promiseHandlerQueue = []
-const consumePromiseHandlerQueue = (shouldResolve, value) => {
-  let [resolve, reject] = promiseHandlerQueue.pop()
-  while (resolve && reject) {
-    if (shouldResolve) {
-      resolve(value)
-    } else {
-      reject(value)
-    }
-    const [nextResolve, nextReject] = promiseHandlerQueue.pop()
-    resolve = nextResolve
-    reject = nextReject
-  }
+export function createWebSocketConnection(webSocketConstructor, addr) {
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(addr)
+    socket.addEventListener('error', reject)
+    socket.addEventListener('open', () => {
+      socket.removeEventListener('error', reject)
+      resolve(socket)
+    })
+  })
 }
 
-let messageQueue = []
-const updateMessageQueue = (newMessageQueue) => {
-  messageQueue = newMessageQueue
+export function getSocketChannel(socket) {
+  return eventChannel((emit) => {
+    socket.addEventListener('message', (ev) => ev.data.toString().split('\n').forEach((chunk) => emit(JSON.parse(chunk))))
+    socket.addEventListener('close', () => emit(END))
+    socket.addEventListener('error', (err) => emit(new Error(err)))
+    return () => socket.close()
+  })
 }
 
-let webSocket = null
-let connectionErrorHandlerRef = null
-
-const handleWebsocketMessage = (ev) => {
-  const messageChunks = ev.data.toString().split('\n')
-  const newMessages = messageChunks.map((chunk) => JSON.parse(chunk))
-  const newMessageQueue = messageQueue.concat(newMessages)
-  updateMessageQueue(newMessageQueue)
-  if (promiseHandlerQueue.length && messageQueue.length) {
-    consumePromiseHandlerQueue(true, messageQueue.pop())
-  }
-}
-
-const createWebSocket = (url) => new Promise((resolve, reject) => {
-  try {
-    webSocket = new WebSocket(url)
-  } catch (e) {
-    reject(e)
-    return
-  }
-  webSocket.addEventListener('open', resolve)
-  webSocket.addEventListener('error', (connectionErrorHandlerRef = reject))
-  webSocket.addEventListener('message', handleWebsocketMessage)
-})
-
-const handleWebsocketCreated = () => {
-  webSocket.removeEventListener('error', connectionErrorHandlerRef)
-  webSocket.addEventListener('error', (reason) => consumePromiseHandlerQueue(false, reason))
-}
-
-export const promises = {
-  initialize: (url) => new Promise(
-    (resolve, reject) => createWebSocket(url)
-      .catch(reject)
-      .then(handleWebsocketCreated)
-      .then(resolve)
-  ),
-  getNextMessage: () => new Promise(
-    (resolve, reject) => messageQueue.length
-      ? resolve(messageQueue.pop()) // resolve with buffered message
-      : promiseHandlerQueue.push([resolve, reject]) // delay resolve / reject until we have a message
-  ),
-}
-
-export function* watchOffers() {
+export function* watchWebsocketConnection(webSocketConstructor) {
+  let channel
   let backoff = 0.5
   while (true) {
-    let ws
-    const url = 'ws://localhost:8080'
     try {
-      yield put(offerConnectionCreated())
-      ws = yield call(promises.initialize, url)
-      yield put(offerConnectionOpened())
+      yield put(offerConnectionConnecting())
+      const connection = yield call(createWebSocketConnection, webSocketConstructor, 'ws://localhost:8080')
+      channel = yield call(getSocketChannel, connection)
+      yield put(offerConnectionOpen())
       while (true) {
-        const offer = yield call(promises.getNextMessage, ws)
-        yield put(offerReceived(offer))
+        const message = yield take(channel)
+        yield put(offerReceived(message))
       }
     } catch (e) {
+      if (channel) channel.close()
       yield put(offerConnectionError(e))
       yield put(offerConnectionRetry(backoff))
-      yield delay(1000 * backoff)
-      backoff *= 1.25
+      delay(backoff * 1000)
+      backoff *= 1.05
     }
   }
 }
 
-export default function* () {
-  yield fork(watchOffers)
+export default function* (webSocketConstructor) {
+  yield fork(watchWebsocketConnection, webSocketConstructor)
 }

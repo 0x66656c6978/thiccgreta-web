@@ -1,11 +1,11 @@
-export const OFFER_CONNECTION_CREATED = 'OFFER_CONNECTION_CREATED'
-export const offerConnectionCreated = () => ({
-  type: OFFER_CONNECTION_CREATED,
+export const OFFER_CONNECTION_CONNECTING = 'OFFER_CONNECTION_CONNECTING'
+export const offerConnectionConnecting = () => ({
+  type: OFFER_CONNECTION_CONNECTING,
 })
 
-export const OFFER_CONNECTION_OPENED = 'OFFER_CONNECTION_OPENED'
-export const offerConnectionOpened = () => ({
-  type: OFFER_CONNECTION_OPENED,
+export const OFFER_CONNECTION_OPEN = 'OFFER_CONNECTION_OPEN'
+export const offerConnectionOpen = () => ({
+  type: OFFER_CONNECTION_OPEN,
 })
 
 export const OFFER_CONNECTION_ERROR = 'OFFER_CONNECTION_ERROR'

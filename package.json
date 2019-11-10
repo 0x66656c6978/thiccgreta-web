@@ -35,6 +35,9 @@
     },
     "setupFiles": [
       "<rootDir>/private/jest/setupTests.js"
+    ],
+    "testPathIgnorePatterns": [
+      "<rootDir>/src-old"
     ]
   },
   "devDependencies": {
